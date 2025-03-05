@@ -7,16 +7,15 @@ import matplotlib.pyplot as plot
 import json 
 
 
-    
 
-def main():
     
-   mp_pose = mp.solutions.pose
+def pose(video_path, output_video_path):
+    mp_pose = mp.solutions.pose
    pose = mp_pose.Pose(static_image_mode=False,
                        min_detection_confidence=0.5,
                        min_tracking_confidence=0.5)
    
-   video_path = '/Users/danielfonseca/repos/baseball_pose/vids/acuna_1.mp4'
+   
    
    cap = cv2.VideoCapture(video_path)
    
@@ -24,7 +23,6 @@ def main():
    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
    fps = int(cap.get(cv2.CAP_PROP_FPS))
    
-   output_video_path = '/Users/danielfonseca/repos/baseball_pose/vids/acuna_1_landmarks.mp4'
    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
    out = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
    
@@ -76,7 +74,13 @@ def main():
 
    print(f'Keypoints data saved to {output_json}')
    print(f'Output video with keypoints saved to {output_video_path}')
+   
+    
 
+def main():
+    
+   
+    
         
    return
 
