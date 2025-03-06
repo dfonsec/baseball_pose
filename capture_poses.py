@@ -10,7 +10,7 @@ import json
 
     
 def pose(video_path, output_video_path):
-    mp_pose = mp.solutions.pose
+   mp_pose = mp.solutions.pose
    pose = mp_pose.Pose(static_image_mode=False,
                        min_detection_confidence=0.5,
                        min_tracking_confidence=0.5)
@@ -41,9 +41,21 @@ def pose(video_path, output_video_path):
        results = pose.process(frame_rgb)
        
        if results.pose_landmarks:
+           landmarks = results.pose_landmarks.landmark
+           xs = [int(landmark.x * frame_width) for landmark in landmarks]
+           ys = [int(landmark.y * frame_width) for landmark in landmarks]
+           zs = [int(landmark.z * frame_width) for landmark in landmarks]
+
+           
+           min_x, max_x = min(xs), max(xs)
+           min_y, max_y = min(ys), max(ys)
+           min_z, max_z = min(zs), max(zs)
+           cv2.rectangle(frame, (min_x, min_y), (max_x, max_y), (0, 255, 0), 2)
+           
            frame_keypoints = {
                'frame': frame_idx,
-               'keypoints': {}
+               'keypoints': {},
+               'box': [min_x, min_y, , min_z, max_x, max_y, max_z]
            }
            
            for idx, landmark in enumerate(results.pose_landmarks.landmark):
@@ -51,7 +63,7 @@ def pose(video_path, output_video_path):
                     'x': landmark.x,
                     'y': landmark.y,
                     'z': landmark.z,
-                    'visibility': landmark.visibility
+                    'visibility': landmark.visibility,
                 }
             
                 video_keypoints.append(frame_keypoints)
@@ -79,8 +91,9 @@ def pose(video_path, output_video_path):
 
 def main():
     
-   
+   pose("/Users/danielfonseca/repos/baseball_pose/vids/acuna_1.mp4", "/Users/danielfonseca/repos/baseball_pose/vids/acuna_12_landmarks.mp4")
     
+   
         
    return
 
