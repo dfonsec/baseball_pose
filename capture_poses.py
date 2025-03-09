@@ -43,7 +43,7 @@ def pose(video_path, output_video_path):
        if results.pose_landmarks:
            landmarks = results.pose_landmarks.landmark
            xs = [int(landmark.x * frame_width) for landmark in landmarks]
-           ys = [int(landmark.y * frame_width) for landmark in landmarks]
+           ys = [int(landmark.y * frame_height) for landmark in landmarks]
            zs = [int(landmark.z * frame_width) for landmark in landmarks]
 
            
@@ -55,7 +55,7 @@ def pose(video_path, output_video_path):
            frame_keypoints = {
                'frame': frame_idx,
                'keypoints': {},
-               'box': [min_x, min_y, , min_z, max_x, max_y, max_z]
+               'box': [min_x, min_y, min_z, max_x, max_y, max_z]
            }
            
            for idx, landmark in enumerate(results.pose_landmarks.landmark):
@@ -80,7 +80,7 @@ def pose(video_path, output_video_path):
    cap.release()
    out.release()
     
-   output_json = "video_keypoints.json"
+   output_json = "/Users/danielfonseca/repos/baseball_pose/pose_jsons/tatis.json"
    with open(output_json, 'w') as f:
         json.dump(video_keypoints, f, indent=4)
 
@@ -91,7 +91,7 @@ def pose(video_path, output_video_path):
 
 def main():
     
-   pose("/Users/danielfonseca/repos/baseball_pose/vids/acuna_1.mp4", "/Users/danielfonseca/repos/baseball_pose/vids/acuna_12_landmarks.mp4")
+   pose("/Users/danielfonseca/repos/baseball_pose/vids/tatis.mp4", "/Users/danielfonseca/repos/baseball_pose/vids/tatis_landmarks.mp4")
     
    
         

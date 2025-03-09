@@ -67,6 +67,7 @@ def l2_normalize(jsonfile):
 
     
 
+def 
 
 def main():
     l2_normalize("/Users/danielfonseca/repos/baseball_pose/video_keypoints.json")
