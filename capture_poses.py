@@ -9,7 +9,7 @@ import json
 
 
     
-def pose(video_path, output_video_path):
+def pose(video_path, output_video_path, output_json):
    mp_pose = mp.solutions.pose
    pose = mp_pose.Pose(static_image_mode=False,
                        min_detection_confidence=0.5,
@@ -80,7 +80,6 @@ def pose(video_path, output_video_path):
    cap.release()
    out.release()
     
-   output_json = "/Users/danielfonseca/repos/baseball_pose/pose_jsons/tatis.json"
    with open(output_json, 'w') as f:
         json.dump(video_keypoints, f, indent=4)
 
@@ -91,11 +90,14 @@ def pose(video_path, output_video_path):
 
 def main():
     
-   pose("/Users/danielfonseca/repos/baseball_pose/vids/tatis.mp4", "/Users/danielfonseca/repos/baseball_pose/vids/tatis_landmarks.mp4")
-    
+    names = ['abreu', 'guerrero', 'rodriguez']
+    for name in names:
+        pose(f"/Users/danielfonseca/repos/baseball_pose/vids/{name}.mp4", 
+             f"/Users/danielfonseca/repos/baseball_pose/vids/landmarks/{name}_landmarks.mp4",
+             f"/Users/danielfonseca/repos/baseball_pose/pose_jsons/{name}.json"
+             )
    
-        
-   return
+    return
 
 
 

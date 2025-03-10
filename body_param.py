@@ -1,6 +1,13 @@
 import numpy as np
 import json
+from dtaidistance.subsequence.dtw import subsequence_alignment
+from dtaidistance import dtw_visualisation as dtwvis
 from dtaidistance import dtw
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+from fastdtw import fastdtw
+from scipy.interpolate import interp1d
 
 ordered_keypoints = [
     "NOSE", "LEFT_EYE_INNER", "LEFT_EYE", "LEFT_EYE_OUTER",
@@ -73,11 +80,26 @@ class ParamPose:
         params = {}
         
 
-        params["left_elbow_angle"] = self._extract_elbow_angle()
+        params["left_elbow_angle"] = self._extract_elbow_angle_left()
+        params["right_elbow_angle"] = self._extract_elbow_angle_right()
+        params["left_knee_angle"] = self._extract_knee_angle_left()
+        params["right_knee_angle"] = self._extract_knee_angle_right()
+        params["right_elbow_height"] = self._extract_elbow_height_right()
+        params["left_elbow_height"] = self._extract_elbow_height_left()
+        params["knees_distance"] = self._extract_knee_distance()
+        
+       
         
         return params
     
     
+    def _compute_knee_distance(self, left_knee, right_knee):
+        dx = left_knee["x"] - right_knee["x"]
+        dy = left_knee["y"] - right_knee["y"]
+        dz = left_knee["z"] - right_knee["z"]
+        
+        return np.sqrt(dx**2 + dy**2 + dz**2)
+        
     def _compute_angle(self, a, b, c):
         
         ba = np.array([a['x'] - b['x'], a['y'] - b['y']])
@@ -87,7 +109,7 @@ class ParamPose:
         
         return np.degrees(angle)
     
-    def _extract_elbow_angle(self):
+    def _extract_elbow_angle_left(self):
         res = []
         seen_frames = set()
         for frame_data in self.normalized_kps:
@@ -104,36 +126,234 @@ class ParamPose:
             
         return res
 
-def resample_time_series(data, num_samples=155):
+    def _extract_elbow_angle_right(self):
+        res = []
+        seen_frames = set()
+        for frame_data in self.normalized_kps:
+            
+            if frame_data["frame"] in seen_frames:
+                continue
+            else:
+                angle = self._compute_angle(frame_data["keypoints"]["RIGHT_SHOULDER"], 
+                                            frame_data["keypoints"]["RIGHT_ELBOW"],
+                                            frame_data["keypoints"]["RIGHT_WRIST"])
+                       
+                seen_frames.add(frame_data["frame"])
+                res.append(angle)
+            
+        return res
+
+    def _extract_knee_angle_left(self):
+        res = []
+        seen_frames = set()
+        for frame_data in self.normalized_kps:
+            
+            if frame_data["frame"] in seen_frames:
+                continue
+            else:
+                angle = self._compute_angle(frame_data["keypoints"]["LEFT_HIP"], 
+                                            frame_data["keypoints"]["LEFT_KNEE"],
+                                            frame_data["keypoints"]["LEFT_ANKLE"])
+                seen_frames.add(frame_data["frame"])
+                res.append(angle)
+        
+        return res
+    
+    def _extract_knee_angle_right(self):
+        res = []
+        seen_frames = set()
+        for frame_data in self.normalized_kps:
+            
+            if frame_data["frame"] in seen_frames:
+                continue
+            else:
+                angle = self._compute_angle(frame_data["keypoints"]["RIGHT_HIP"], 
+                                            frame_data["keypoints"]["RIGHT_KNEE"],
+                                            frame_data["keypoints"]["RIGHT_ANKLE"])
+                seen_frames.add(frame_data["frame"])
+                res.append(angle)
+        
+        return res
+    
+
+    def _extract_elbow_height_left(self):
+        res = []
+        seen_frames = set()
+        for frame_data in self.normalized_kps:
+            if frame_data["frame"] in seen_frames:
+                continue
+            else:
+                left_elbow_height = frame_data["keypoints"]["LEFT_ELBOW"]["y"]
+                seen_frames.add(frame_data["frame"])
+                res.append(left_elbow_height)
+        
+        return res
+    
+    def _extract_elbow_height_right(self):
+        res = []
+        seen_frames = set()
+        for frame_data in self.normalized_kps:
+            if frame_data["frame"] in seen_frames:
+                continue
+            else:
+                right_elbow_height = frame_data["keypoints"]["RIGHT_ELBOW"]["y"]
+                seen_frames.add(frame_data["frame"])
+                res.append(right_elbow_height)
+        
+        return res
+    
+    def _extract_knee_distance(self):
+        res = []
+        seen_frames = set()
+        for frame_data in self.normalized_kps:
+            if frame_data["frame"] in self.normalized_kps:
+                continue
+            else:
+                distance = self._compute_knee_distance(frame_data["keypoints"]["LEFT_KNEE"],
+                                                       frame_data["keypoints"]["RIGHT_KNEE"]
+                                                       )
+                seen_frames.add(frame_data["frame"])
+                res.append(distance)
+        
+        return res
+            
+def resample_time_series(data, num_samples=200):
     
         original_length = len(data)
+        
         # Normalized time points for the original data
         original_times = np.linspace(0, 1, original_length)
         # Desired normalized time points for the resampled data
         resample_times = np.linspace(0, 1, num_samples)
         # Interpolate to resample the data
-        resampled_data = np.interp(resample_times, original_times, data)
         
-        return resampled_data
+        
+        interpolator = interp1d(original_times, data, kind='linear')
+        
+        return interpolator(resample_times)
     
+def dtw_compare(label_data, input_data):
+    keys = [
+        "left_elbow_angle", "right_elbow_angle",
+        "left_knee_angle", "right_knee_angle",
+        "right_elbow_height", "left_elbow_height",
+        "knees_distance"
+    ]
+
+    scores = {}
     
+    # Compute DTW distance and score for each parameter
+    for key in keys:
+        # Each key's value is a list representing the time-series across frames
+        label_series = resample_time_series(label_data.get(key, []))
+        input_series = resample_time_series(input_data.get(key, []))
+        
+        # Compute the DTW distance between the two time-series
+        if len(label_series) <= len(input_series):
+            query_series, reference_series = label_series, input_series
+        else:
+            query_series, reference_series = input_series, label_series
+    
+        alignment = subsequence_alignment(query_series, reference_series)
+        match = alignment.best_match()
+        startidx, endidx = match.segment
+       
+
+        matched_reference_series = reference_series[startidx:endidx]
+
+        distance, _ = fastdtw(query_series, matched_reference_series)
+
+        scores[key] = distance * 100
+    
+    # Calculate an overall score as the average of the individual scores
+    scores["Total_Score"] = np.mean(list(scores.values()))
+    
+    return scores
     
 
         
-        
-           
            
 def main():
     acuna_1 = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/acuna_1.json")
     acuna_2 = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/acuna_2.json")
+    betts = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/betts.json")
     tatis = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/tatis.json")
+    abreu = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/abreu.json")
+    guerrero = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/guerrero.json")
+    rodriguez = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/rodriguez.json")
+    
+    # Acuna and Acuna
+    scores_acuna = dtw_compare(acuna_1.parameters, acuna_2.parameters)
+    
+    # Acunas and Betts
+    scores_acuna1_betts = dtw_compare(acuna_1.parameters, betts.parameters)
+    scores_acuna2_betts = dtw_compare(acuna_2.parameters, betts.parameters)
+    
+    # Acunas and Tatis
+    scores_acuna1_tatis = dtw_compare(acuna_1.parameters, tatis.parameters)
+    scores_acuna2_tatis = dtw_compare(acuna_2.parameters, tatis.parameters)
+    
+    # Acunas and Abreu
+    scores_acuna1_abreu = dtw_compare(acuna_1.parameters, abreu.parameters)
+    scores_acuna2_abreu = dtw_compare(acuna_2.parameters, abreu.parameters)
+    
+    # Acunas and Guerrero
+    scores_acuna1_guerrero = dtw_compare(acuna_1.parameters, guerrero.parameters)
+    scores_acuna2_guerrero = dtw_compare(acuna_2.parameters, guerrero.parameters)
+    
+    # Acunas and Rodriguez
+    scores_acuna1_rodriguez = dtw_compare(acuna_1.parameters, rodriguez.parameters)
+    scores_acuna2_rodriguez = dtw_compare(acuna_2.parameters, rodriguez.parameters)
     
     
-    acuna_norm1 = resample_time_series(acuna_1.parameters["left_elbow_angle"]) # normal
-    acuna_norm2 = resample_time_series(acuna_2.parameters["left_elbow_angle"]) #slowmo 
-    tatis_norm = resample_time_series(tatis.parameters["left_elbow_angle"]) # slowmo
-    distance = dtw.distance(tatis_norm, acuna_norm2)
-    print(distance)
+    scores = [
+    scores_acuna["Total_Score"],
+    scores_acuna1_betts["Total_Score"],
+    scores_acuna2_betts["Total_Score"],
+    scores_acuna1_tatis["Total_Score"],
+    scores_acuna2_tatis["Total_Score"],
+    scores_acuna1_abreu["Total_Score"],
+    scores_acuna2_abreu["Total_Score"],
+    scores_acuna1_guerrero["Total_Score"],
+    scores_acuna2_guerrero["Total_Score"],
+    scores_acuna1_rodriguez["Total_Score"],
+    scores_acuna2_rodriguez["Total_Score"]
+]
+    
+    labels = [
+    "Acuna1 vs Acuna2",
+    "Acuna1 vs Betts",
+    "Acuna2 vs Betts",
+    "Acuna1 vs Tatis",
+    "Acuna2 vs Tatis",
+    "Acuna1 vs Abreu",
+    "Acuna2 vs Abreu",
+    "Acuna1 vs Guerrero",
+    "Acuna2 vs Guerrero",
+    "Acuna1 vs Rodriguez",
+    "Acuna2 vs Rodriguez"
+]
+    
+    plt.figure(figsize=(10, 6))
+
+    for i, (score, label) in enumerate(zip(scores, labels)):
+        color = np.random.rand(3)
+        plt.scatter(i, score, color=color)
+        plt.annotate(label, (i, score), textcoords="offset points", xytext=(0, 10), ha="center")
+
+
+    plt.xticks(range(len(scores)), labels, rotation=45, ha="right")
+    plt.ylabel("DTW Total Score")
+    plt.title("DTW Comparison Scores for Player Poses")
+    plt.tight_layout()
+    plt.savefig("Test_1.png")
+    
+    
+    
+    
+    
+    
+    
 
     return
 
