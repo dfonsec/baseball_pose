@@ -1,13 +1,11 @@
 import numpy as np
 import json
 from dtaidistance.subsequence.dtw import subsequence_alignment
-from dtaidistance import dtw_visualisation as dtwvis
-from dtaidistance import dtw
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
 from fastdtw import fastdtw
 from scipy.interpolate import interp1d
+
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 ordered_keypoints = [
     "NOSE", "LEFT_EYE_INNER", "LEFT_EYE", "LEFT_EYE_OUTER",
@@ -21,6 +19,7 @@ ordered_keypoints = [
     "LEFT_FOOT_INDEX", "RIGHT_FOOT_INDEX"
 ]
 
+#TODO: Develop other metrics such as load
 
 class ParamPose:
     def __init__(self, kps_json_path):
@@ -87,6 +86,7 @@ class ParamPose:
         params["right_elbow_height"] = self._extract_elbow_height_right()
         params["left_elbow_height"] = self._extract_elbow_height_left()
         params["knees_distance"] = self._extract_knee_distance()
+        # define more parameters
         
        
         
@@ -277,6 +277,7 @@ def main():
     acuna_1 = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/acuna_1.json")
     acuna_2 = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/acuna_2.json")
     betts = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/betts.json")
+    betts_2 = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/betts_2.json")
     tatis = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/tatis.json")
     abreu = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/abreu.json")
     guerrero = ParamPose("/Users/danielfonseca/repos/baseball_pose/pose_jsons/guerrero.json")
@@ -305,7 +306,25 @@ def main():
     scores_acuna1_rodriguez = dtw_compare(acuna_1.parameters, rodriguez.parameters)
     scores_acuna2_rodriguez = dtw_compare(acuna_2.parameters, rodriguez.parameters)
     
+    #Betts and Betts
+    scores_betts_betts_2 = dtw_compare(betts.parameters, betts_2.parameters)
     
+    # Betts and Tatis 
+    scores_betts_tatis = dtw_compare(tatis.parameters, betts.parameters)
+    scores_betts_2_tatis = dtw_compare(tatis.parameters, betts_2.parameters)
+    
+    # Betts and Abreu
+    scores_betts_abreu = dtw_compare(abreu.parameters, betts.parameters)
+    scores_betts_2_abreu = dtw_compare(abreu.parameters, betts_2.parameters)
+    
+    #Betts and Guerrero
+    scores_betts_guerrero = dtw_compare(guerrero.parameters, betts.parameters)
+    scores_betts_2_guerrero = dtw_compare(guerrero.parameters, betts_2.parameters)
+    
+    # Betts and Rodriguez
+    scores_betts_rodriguez = dtw_compare(rodriguez.parameters, betts.parameters)
+    scores_betts_2_rodriguez = dtw_compare(rodriguez.parameters, betts_2.parameters)
+
     scores = [
     scores_acuna["Total_Score"],
     scores_acuna1_betts["Total_Score"],
@@ -317,7 +336,16 @@ def main():
     scores_acuna1_guerrero["Total_Score"],
     scores_acuna2_guerrero["Total_Score"],
     scores_acuna1_rodriguez["Total_Score"],
-    scores_acuna2_rodriguez["Total_Score"]
+    scores_acuna2_rodriguez["Total_Score"],
+    scores_betts_betts_2["Total_Score"],
+    scores_betts_tatis["Total_Score"],
+    scores_betts_2_tatis["Total_Score"],
+    scores_betts_abreu["Total_Score"],
+    scores_betts_2_abreu["Total_Score"],
+    scores_betts_guerrero["Total_Score"],
+    scores_betts_2_guerrero["Total_Score"],
+    scores_betts_rodriguez["Total_Score"],
+    scores_betts_2_rodriguez["Total_Score"]
 ]
     
     labels = [
@@ -331,10 +359,19 @@ def main():
     "Acuna1 vs Guerrero",
     "Acuna2 vs Guerrero",
     "Acuna1 vs Rodriguez",
-    "Acuna2 vs Rodriguez"
+    "Acuna2 vs Rodriguez",
+    "Betts vs Betts2",
+    "Betts vs Tatis",
+    "Betts2 vs Tatis",
+    "Betts vs Abreu",
+    "Betts2 vs Abreu",
+    "Betts vs Guerrero",
+    "Betts2 vs Guerrero",
+    "Betts vs Rodriguez",
+    "Betts2 vs Rodriguez"
 ]
     
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(20, 6))
 
     for i, (score, label) in enumerate(zip(scores, labels)):
         color = np.random.rand(3)
@@ -344,22 +381,20 @@ def main():
 
     plt.xticks(range(len(scores)), labels, rotation=45, ha="right")
     plt.ylabel("DTW Total Score")
-    plt.title("DTW Comparison Scores for Player Poses")
+    plt.title("DTW Comparison Scores for Player Poses (Lower is Better)")
     plt.tight_layout()
-    plt.savefig("Test_1.png")
+    plt.savefig("Test_2.png")
     
-    
-    
-    
-    
-    
-    
-
     return
 
 
 if __name__ == "__main__":
     main()
+    
+    
+    
+    
+    
 
     
                 
